@@ -154,6 +154,7 @@ model = AIMetaModelAdvanced(
     dropout=0.2         # Dropout率
 )
 ```
+（注意⚠️！！！，在advanced_trainer.py里面修改了参数之后，必须在advanced_chat.py里面把参数配置成一样的，否则聊天功能会失败）
 
 ### 可视化分析
 
