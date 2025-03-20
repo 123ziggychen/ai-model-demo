@@ -19,34 +19,31 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 class AdvancedChatInterface:
-    def __init__(self, model_dir="./advanced_model"):
+    def __init__(self, model_dir):
+        """初始化聊天界面"""
         self.model_dir = model_dir
-        self.tokenizer_path = os.path.join(model_dir, "tokenizer.pkl")
-        self.model_path = os.path.join(model_dir, "model.pt")
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         
-        # 加载模型和分词器
-        if not os.path.exists(self.tokenizer_path) or not os.path.exists(self.model_path):
-            raise FileNotFoundError("模型文件不存在，请先运行 advanced_trainer.py 训练模型")
+        # 加载分词器
+        tokenizer_path = os.path.join(model_dir, "tokenizer.pkl")
+        self.tokenizer = TokenizerCN.load(tokenizer_path)
         
-        logger.info("加载模型和分词器...")
-        self.tokenizer = TokenizerCN.load(self.tokenizer_path)
-        
-        # 创建具有正确配置的模型
-        model = AIMetaModelAdvanced(
+        # 创建模型
+        self.model = AIMetaModelAdvanced(
             vocab_size=len(self.tokenizer.word2idx),
-            embed_dim=256,      # 增加嵌入维度
-            num_heads=8,        # 增加注意力头数
-            ff_dim=1024,        # 增加前馈网络维度
-            num_layers=8,       # 增加层数
-            max_length=100,     # 保持最大长度
-            dropout=0.2         # 增加dropout
-        )
+            embed_dim=64,        # 减小嵌入维度
+            num_heads=4,         # 减少注意力头数
+            ff_dim=256,          # 减小前馈网络维度
+            num_layers=2,        # 减少Transformer层数
+            max_length=50,       # 减小最大序列长度
+            dropout=0.1          # 减小dropout
+        ).to(self.device)
         
         # 加载模型参数
-        checkpoint = torch.load(self.model_path)
-        model.load_state_dict(checkpoint['model_state_dict'])
-        self.trainer = ModelTrainer(model, self.tokenizer)
-        logger.info("模型加载完成")
+        model_path = os.path.join(model_dir, "model.pt")
+        checkpoint = torch.load(model_path, map_location=self.device)
+        self.model.load_state_dict(checkpoint['model_state_dict'])
+        self.model.eval()
         
         # 设置生成参数
         self.max_length = 200     # 增加最大生成长度
@@ -63,7 +60,7 @@ class AdvancedChatInterface:
                 return "抱歉，我无法理解您的输入。"
             
             # 生成回复
-            response = self.trainer.model.generate_text(
+            response = self.model.generate_text(
                 self.tokenizer,
                 prompt,  # 使用完整的用户输入
                 max_length=self.max_length,
